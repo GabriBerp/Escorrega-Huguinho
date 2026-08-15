@@ -8,20 +8,23 @@ public class PlayerGridMovement : MonoBehaviour
     [SerializeField] private float tamanhoDoBloco = 1f;
     
     [Header("Detecção de Obstáculos")]
-    // Defina a Layer das suas paredes/obstáculos como "Obstacle" no Unity
     [SerializeField] private LayerMask layerObstaculos; 
+
+    [Header("Detecção de Pisos (Unity 6.5)")]
+    [SerializeField] private LayerMask layerPisos;
+    [SerializeField] private string tagPisoNormal = "PisoNormal";
 
     private bool estaDeslizando = false;
 
     void Update()
     {
-        // Se já estiver deslizando, ignora novos comandos do teclado
+        // Se já estiver em movimento/deslizando, não aceita novos comandos
         if (estaDeslizando) return;
 
-        float horizontal = Input.GetAxisRaw("Horizontal"); // A/D ou Setas
-        float vertical = Input.GetAxisRaw("Vertical");     // W/S ou Setas
+        float horizontal = Input.GetAxisRaw("Horizontal");
+        float vertical = Input.GetAxisRaw("Vertical");
 
-        // Evita movimento diagonal (foca apenas na direção mais forte)
+        // Evita diagonal (foca no eixo dominante)
         if (horizontal != 0) vertical = 0;
 
         if (horizontal != 0 || vertical != 0)
@@ -35,29 +38,38 @@ public class PlayerGridMovement : MonoBehaviour
     {
         estaDeslizando = true;
 
-        // Loop infinito de deslizamento: só para se encontrar um obstáculo
         while (true)
         {
-            // Calcula a posição da próxima casa do Grid
+            // 1. Calcula a próxima posição no grid
             Vector3 proximaPosicao = transform.position + direcao * tamanhoDoBloco;
 
-            // Lança um raio físico (Raycast) para ver se a próxima casa tem um obstáculo
-            // Usando as APIs otimizadas do Unity 6
-            if (Physics.Raycast(transform.position, direcao, out RaycastHit hit, tamanhoDoBloco, layerObstaculos))
+            // 2. Verifica se há parede/obstáculo no caminho
+            if (Physics.Raycast(transform.position + Vector3.up * 0.2f, direcao, out RaycastHit hitObstaculo, tamanhoDoBloco, layerObstaculos))
             {
-                // Se bateu em algo, sai do loop e para de deslizar!
+                // Se houver parede, interrompe o movimento imediatamente
                 break;
             }
 
-            // Move suavemente o Hugo até a próxima casa
+            // 3. Move o Hugo até a próxima casa do grid de forma suave
             while (Vector3.Distance(transform.position, proximaPosicao) > 0.01f)
             {
                 transform.position = Vector3.MoveTowards(transform.position, proximaPosicao, velocidadeMovimento * Time.deltaTime);
                 yield return null;
             }
 
-            // Ajusta a posição final para garantir que ele fique perfeitamente no centro do bloco
+            // Garante o alinhamento perfeito no centro do bloco
             transform.position = proximaPosicao;
+
+            // 4. Checa o piso abaixo do jogador usando Raycast 3D otimizado
+            Vector3 origemRaio = transform.position + Vector3.up * 0.5f; // Começa um pouco acima do pé do personagem
+            if (Physics.Raycast(origemRaio, Vector3.down, out RaycastHit hitPiso, 1.0f, layerPisos))
+            {
+                // Se o piso atual tiver a Tag de Piso Normal, Hugo para de deslizar
+                if (hitPiso.collider.CompareTag(tagPisoNormal))
+                {
+                    break; 
+                }
+            }
         }
 
         estaDeslizando = false;

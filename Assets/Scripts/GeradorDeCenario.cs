@@ -1,26 +1,21 @@
 using UnityEngine;
-using System;
 
 public class GeradorDeCenario : MonoBehaviour
 {
+    [Header("Imagem do Mapa")]
+    [Tooltip("A imagem que define o cenário. Ative 'Read/Write' nas configurações dela!")]
+    [SerializeField] private Texture2D mapaTextura;
+
     [Header("Prefabs dos Elementos")]
     [SerializeField] private GameObject prefabGelo;
     [SerializeField] private GameObject prefabParede;
     [SerializeField] private GameObject prefabHugo;
     [SerializeField] private GameObject prefabObjetivo;
-    [SerializeField] private GameObject prefabBuraco; // Novo Prefab adicionado!
+    [SerializeField] private GameObject prefabBuraco;
+    [SerializeField] private GameObject prefabPisoCaverna;
 
     [Header("Configurações da Grade")]
     [SerializeField] private float tamanhoDoBloco = 1.0f;
-
-    [Header("Desenho da Fase (Matriz)")]
-    [TextArea(10, 20)]
-    [SerializeField] private string layoutDaFase = 
-        "#######\n" +
-        "#S...G#\n" +
-        "#.###.#\n" +
-        "#..O..#\n" +
-        "#######";
 
     private void Start()
     {
@@ -29,59 +24,74 @@ public class GeradorDeCenario : MonoBehaviour
 
     public void GerarFase()
     {
+        if (mapaTextura == null)
+        {
+            Debug.LogError("Por favor, atribua uma textura de mapa no Inspector!");
+            return;
+        }
+
         LimparCenario();
 
-        string[] linhas = layoutDaFase.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-        int altura = linhas.Length;
+        int largura = mapaTextura.width;
+        int altura = mapaTextura.height;
 
-        for (int z = 0; z < altura; z++)
+        for (int x = 0; x < largura; x++)
         {
-            string linhaAtual = linesAdaptadas(linhas[z]);
-            int largura = linhaAtual.Length;
-
-            for (int x = 0; x < largura; x++)
+            for (int z = 0; z < altura; z++)
             {
-                char caractere = linhaAtual[x];
-                
-                Vector3 posicao = new Vector3(x * tamanhoDoBloco, 0, (altura - 1 - z) * tamanhoDoBloco);
+                Color corDoPixel = mapaTextura.GetPixel(x, z);
+                Vector3 posicao = new Vector3(x * tamanhoDoBloco, 0, z * tamanhoDoBloco);
 
-                // Só gera o chão de gelo se NÃO for um buraco ('O')
-                if (caractere != 'O')
+                // GERAÇÃO DO CHÃO BASE:
+                // Se for Buraco (Preto) ou Piso Caverna (Verde), NÃO criamos gelo por baixo
+                if (!CompararCores(corDoPixel, Color.black) && !CompararCores(corDoPixel, Color.green))
                 {
                     InstanciarObjeto(prefabGelo, posicao, transform);
                 }
 
-                // Instancia o objeto correspondente ao caractere
-                switch (caractere)
-                {
-                    case '#': // Parede
-                        InstanciarObjeto(prefabParede, posicao + Vector3.up * 0.5f, transform);
-                        break;
-
-                    case 'S': // Hugo (Start)
-                        InstanciarObjeto(prefabHugo, posicao + Vector3.up * 0.5f, null);
-                        break;
-
-                    case 'G': // Objetivo (Goal)
-                        InstanciarObjeto(prefabObjetivo, posicao, transform);
-                        break;
-
-                    case 'O': // Buraco (Obstacle/Hazard)
-                        InstanciarObjeto(prefabBuraco, posicao, transform);
-                        break;
-
-                    case '.': // Gelo vazio (já tratado no IF acima)
-                    default:
-                        break;
-                }
+                // Decide o que colocar por cima ou como piso principal
+                VerificarECriarElemento(corDoPixel, posicao);
             }
         }
     }
 
-    private string linesAdaptadas(string linha)
+    private void VerificarECriarElemento(Color cor, Vector3 posicao)
     {
-        // Remove espaços extras que possam quebrar a matriz no inspetor
-        return linha.Trim();
+        // BRANCO -> Parede
+        if (CompararCores(cor, Color.white))
+        {
+            InstanciarObjeto(prefabParede, posicao + Vector3.up * 0.5f, transform);
+        }
+        // VERMELHO -> Jogador (Hugo)
+        else if (CompararCores(cor, Color.red))
+        {
+            InstanciarObjeto(prefabHugo, posicao + Vector3.up * 0.5f, null);
+        }
+        // AMARELO -> Objetivo
+        else if (CompararCores(cor, Color.yellow))
+        {
+            InstanciarObjeto(prefabObjetivo, posicao, transform);
+        }
+        // PRETO -> Buraco
+        else if (CompararCores(cor, Color.black))
+        {
+            InstanciarObjeto(prefabBuraco, posicao, transform);
+        }
+        // VERDE -> Novo Piso de Caverna (Normal)
+        else if (CompararCores(cor, Color.green))
+        {
+            InstanciarObjeto(prefabPisoCaverna, posicao, transform);
+        }
+        // CIANO -> Apenas Gelo (Já tratado no chão base)
+    }
+
+    // Compara cores com margem de tolerância (evita bugs de cores quase idênticas)
+    private bool CompararCores(Color c1, Color c2)
+    {
+        float limite = 0.1f;
+        return Mathf.Abs(c1.r - c2.r) < limite &&
+               Mathf.Abs(c1.g - c2.g) < limite &&
+               Mathf.Abs(c1.b - c2.b) < limite;
     }
 
     private void InstanciarObjeto(GameObject prefab, Vector3 posicao, Transform pai)
