@@ -70,7 +70,7 @@ public class GeradorDeCenario : MonoBehaviour
         // AMARELO -> Objetivo
         else if (CompararCores(cor, Color.yellow))
         {
-            InstanciarObjeto(prefabObjetivo, posicao, transform);
+            InstanciarObjeto(prefabObjetivo, posicao + Vector3.up * 0.5f, transform);
         }
         // PRETO -> Buraco
         else if (CompararCores(cor, Color.black))

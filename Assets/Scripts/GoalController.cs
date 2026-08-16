@@ -32,7 +32,7 @@ public class GoalController : MonoBehaviour
         {
             Debug.Log("Você venceu o jogo! Não há mais fases.");
             // Opcional: Voltar para a tela de menu (Cena 0)
-            // SceneManager.LoadScene(0);
+            SceneManager.LoadScene(0);
         }
     }
 }
