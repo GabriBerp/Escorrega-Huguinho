@@ -128,7 +128,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 029ac1325b40d4f4dae4fb3d0ef87856, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerGridMovement
-  velocidadeMovimento: 8
+  velocidadeMovimento: 4
   tamanhoDoBloco: 1
   layerObstaculos:
     serializedVersion: 2
