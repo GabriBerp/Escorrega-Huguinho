@@ -6,6 +6,7 @@ public class PlayerGridMovement : MonoBehaviour
     [Header("Configurações de Movimento")]
     [SerializeField] private float velocidadeMovimento = 8f;
     [SerializeField] private float tamanhoDoBloco = 1f;
+    [SerializeField] private float multiplicadorShift = 1.5f; // O quanto ele corre (ex: 1.5x mais rápido)
     
     [Header("Detecção de Obstáculos")]
     [SerializeField] private LayerMask layerObstaculos; 
@@ -50,21 +51,37 @@ public class PlayerGridMovement : MonoBehaviour
                 break;
             }
 
-            // 3. Move o Hugo até a próxima casa do grid de forma suave
+            // --- NOVO: LÓGICA DE VELOCIDADE COM SHIFT ---
+            float velocidadeAtualDoPasso = velocidadeMovimento;
+
+            // Detecta se o Hugo está pisando no "Piso Normal" no início deste passo
+            Vector3 origemRaioPisoAtual = transform.position + Vector3.up * 0.5f;
+            if (Physics.Raycast(origemRaioPisoAtual, Vector3.down, out RaycastHit hitPisoAtual, 1.0f, layerPisos))
+            {
+                // Se estiver no piso normal E segurando a tecla Shift (Esquerdo ou Direito)
+                if (hitPisoAtual.collider.CompareTag(tagPisoNormal) && 
+                    (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+                {
+                    velocidadeAtualDoPasso *= multiplicadorShift; // Aumenta a velocidade deste passo
+                }
+            }
+            // ---------------------------------------------
+
+            // 3. Move o Hugo até a próxima casa do grid de forma suave usando a velocidade calculada
             while (Vector3.Distance(transform.position, proximaPosicao) > 0.01f)
             {
-                transform.position = Vector3.MoveTowards(transform.position, proximaPosicao, velocidadeMovimento * Time.deltaTime);
+                transform.position = Vector3.MoveTowards(transform.position, proximaPosicao, velocidadeAtualDoPasso * Time.deltaTime);
                 yield return null;
             }
 
             // Garante o alinhamento perfeito no centro do bloco
             transform.position = proximaPosicao;
 
-            // 4. Checa o piso abaixo do jogador usando Raycast 3D otimizado
-            Vector3 origemRaio = transform.position + Vector3.up * 0.5f; // Começa um pouco acima do pé do personagem
-            if (Physics.Raycast(origemRaio, Vector3.down, out RaycastHit hitPiso, 1.0f, layerPisos))
+            // 4. Checa o piso abaixo do jogador para decidir se deve continuar deslizando
+            Vector3 origemRaioProximoPiso = transform.position + Vector3.up * 0.5f;
+            if (Physics.Raycast(origemRaioProximoPiso, Vector3.down, out RaycastHit hitPiso, 1.0f, layerPisos))
             {
-                // Se o piso atual tiver a Tag de Piso Normal, Hugo para de deslizar
+                // Se o piso alcançado for o normal, ele para de deslizar
                 if (hitPiso.collider.CompareTag(tagPisoNormal))
                 {
                     break; 
